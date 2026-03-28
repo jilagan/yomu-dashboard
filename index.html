@@ -150,13 +150,18 @@ function showLogin() {
   document.getElementById('login-overlay').style.display = 'flex';
   const inp = document.getElementById('login-pass');
   const btn = document.getElementById('login-btn');
-  const saved = localStorage.getItem('yd_pass');
-  if (saved) { inp.value = saved; btn.click(); return; }
-  btn.addEventListener('click', () => {
+
+  // Attach listeners first (idempotent via clone-replace)
+  const newBtn = btn.cloneNode(true);
+  btn.parentNode.replaceChild(newBtn, btn);
+  newBtn.addEventListener('click', () => {
     localStorage.setItem('yd_pass', inp.value);
     load();
   });
-  inp.addEventListener('keydown', e => { if (e.key === 'Enter') btn.click(); });
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') newBtn.click(); });
+
+  const saved = localStorage.getItem('yd_pass');
+  if (saved) { inp.value = saved; newBtn.click(); }
 }
 
 async function load() {
