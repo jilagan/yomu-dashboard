@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yomu Mentor &mdash; Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f7; color: #1d1d1f; }
+  header { background: #fff; border-bottom: 1px solid #e5e5ea; padding: 18px 32px; display: flex; align-items: center; gap: 14px; }
+  .logo { font-size: 28px; }
+  header h1 { font-size: 20px; font-weight: 700; }
+  header p { font-size: 12px; color: #86868b; margin-top: 2px; }
+  #updated { font-size: 11px; color: #86868b; margin-left: auto; }
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #34c759; margin-right: 5px; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .container { max-width: 1120px; margin: 0 auto; padding: 24px 20px; }
+  .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: #86868b; margin: 28px 0 12px; }
+  .section-label.reading { color: #009688; }
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+  .stats-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+  .stat-card { background: #fff; border-radius: 14px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .stat-card .lbl { font-size: 11px; color: #86868b; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+  .stat-card .val { font-size: 34px; font-weight: 700; margin: 5px 0 2px; }
+  .stat-card .sub { font-size: 11px; color: #86868b; }
+  .red{color:#ff3b30} .green{color:#34c759} .blue{color:#007aff} .orange{color:#ff9500} .purple{color:#5856d6} .teal{color:#009688}
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+  .three-col { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 20px; }
+  .card { background:#fff; border-radius:14px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  .card h2 { font-size:14px; font-weight:600; margin-bottom:14px; }
+  .card h2 span { font-size:11px; color:#86868b; font-weight:400; margin-left:5px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; font-size:10px; font-weight:600; color:#86868b; text-transform:uppercase; letter-spacing:.4px; padding:0 0 8px; border-bottom:1px solid #f2f2f7; }
+  td { padding:9px 0; border-bottom:1px solid #f2f2f7; vertical-align:middle; }
+  tr:last-child td { border-bottom:none; }
+  .chart-wrap { position:relative; height:170px; }
+  .note { font-size:11px; color:#86868b; font-style:italic; margin-top:10px; }
+  #error { display:none; background:#fee2e2; color:#991b1b; padding:12px 20px; border-radius:10px; margin-bottom:16px; font-size:13px; }
+  #login-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:999; }
+  #login-box { background:#fff; border-radius:18px; padding:36px 32px 28px; width:340px; box-shadow:0 12px 40px rgba(0,0,0,.2); text-align:center; }
+  #login-box h2 { font-size:18px; margin-bottom:4px; }
+  #login-box p { font-size:12px; color:#86868b; margin-bottom:20px; }
+  #login-box input { width:100%; padding:10px 14px; border:1px solid #e5e5ea; border-radius:8px; font-size:14px; margin-bottom:10px; outline:none; }
+  #login-box input:focus { border-color:#009688; }
+  #login-box button { width:100%; padding:10px; background:#009688; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; }
+  #login-box button:hover { background:#00796b; }
+  #login-err { color:#ff3b30; font-size:12px; margin-top:8px; display:none; }
+  @media(max-width:700px){
+    .stats-grid,.stats-grid-3{grid-template-columns:repeat(2,1fr)}
+    .two-col,.three-col{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<div id="login-overlay" style="display:none">
+  <div id="login-box">
+    <div style="font-size:36px;margin-bottom:8px;">読</div>
+    <h2>Yomu Mentor Dashboard</h2>
+    <p>Enter credentials to view beta stats</p>
+    <input id="login-pass" type="password" placeholder="Password" autofocus>
+    <button id="login-btn">Sign In</button>
+    <div id="login-err">Invalid password. Try again.</div>
+  </div>
+</div>
+
+<header>
+  <div class="logo">読</div>
+  <div>
+    <h1>Yomu Mentor</h1>
+    <p>Internal Beta Dashboard</p>
+  </div>
+  <div id="updated"><span class="dot"></span>Loading&hellip;</div>
+</header>
+
+<div class="container">
+  <div id="error"></div>
+
+  <!-- Activation Funnel -->
+  <div class="section-label" style="color:#ff3b30">&#x1f534; Activation Funnel</div>
+  <div class="stats-grid" id="funnelCards">
+    <div class="stat-card"><div class="lbl">Signups</div><div class="val">&mdash;</div><div class="sub">&mdash;</div></div>
+    <div class="stat-card"><div class="lbl">Activated</div><div class="val">&mdash;</div><div class="sub">read &ge;1 passage</div></div>
+    <div class="stat-card"><div class="lbl">Retained D2+</div><div class="val">&mdash;</div><div class="sub">came back day 2+</div></div>
+    <div class="stat-card"><div class="lbl">Retained D7+</div><div class="val">&mdash;</div><div class="sub">active 7+ days</div></div>
+  </div>
+  <div class="two-col" style="margin-bottom:20px">
+    <div class="card">
+      <h2>Cohort Activation <span>last 14 days</span></h2>
+      <table>
+        <thead><tr><th>Date</th><th>Signups</th><th>Activated</th><th>Rate</th><th>Retained</th></tr></thead>
+        <tbody id="cohortTable"></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h2>Funnel Health</h2>
+      <div id="funnelDetails" style="font-size:13px;line-height:2"></div>
+    </div>
+  </div>
+
+  <!-- Overview -->
+  <div class="section-label">Overview</div>
+  <div class="stats-grid" id="statCards">
+    <div class="stat-card"><div class="lbl">Users</div><div class="val red">&mdash;</div><div class="sub">&mdash;</div></div>
+    <div class="stat-card"><div class="lbl">Passages Read</div><div class="val teal">&mdash;</div><div class="sub">&mdash;</div></div>
+    <div class="stat-card"><div class="lbl">Reading Time</div><div class="val blue">&mdash;</div><div class="sub">total</div></div>
+    <div class="stat-card"><div class="lbl">Avg Quiz Score</div><div class="val orange">&mdash;</div><div class="sub">&mdash;</div></div>
+  </div>
+
+  <!-- Reading-specific stats -->
+  <div class="section-label reading">Reading &amp; Grammar</div>
+  <div class="stats-grid" id="readingStatCards">
+    <div class="stat-card"><div class="lbl">Words Looked Up</div><div class="val teal">&mdash;</div><div class="sub">total taps</div></div>
+    <div class="stat-card"><div class="lbl">Vocab SRS Cards</div><div class="val green">&mdash;</div><div class="sub">&mdash;</div></div>
+    <div class="stat-card"><div class="lbl">Grammar Encountered</div><div class="val purple">&mdash;</div><div class="sub">&mdash;</div></div>
+    <div class="stat-card"><div class="lbl">Passage Library</div><div class="val blue">&mdash;</div><div class="sub">&mdash;</div></div>
+  </div>
+
+  <!-- Charts -->
+  <div class="two-col">
+    <div class="card"><h2>Daily Completions <span>last 14 days</span></h2><div class="chart-wrap"><canvas id="actChart"></canvas></div></div>
+    <div class="card">
+      <h2>Top Passages <span>by completions</span></h2>
+      <table><thead><tr><th>Title</th><th>Level</th><th>Done</th></tr></thead>
+      <tbody id="passageTable"></tbody></table>
+    </div>
+  </div>
+
+  <!-- Users -->
+  <div class="card" style="margin-bottom:20px">
+    <h2>Users</h2>
+    <table>
+      <thead><tr>
+        <th>User</th><th>Read</th><th>Time</th>
+        <th>Lookups</th><th>Quiz%</th>
+        <th>SRS</th><th>Grammar</th>
+        <th>Joined</th><th>Last Seen</th>
+      </tr></thead>
+      <tbody id="userTable"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const API = 'https://fltusorahxjvsdjaspgy.supabase.co/functions/v1/yomu-dashboard';
+let actChart;
+
+function showLogin() {
+  document.getElementById('login-overlay').style.display = 'flex';
+  const inp = document.getElementById('login-pass');
+  const btn = document.getElementById('login-btn');
+  const saved = localStorage.getItem('yd_pass');
+  if (saved) { inp.value = saved; btn.click(); return; }
+  btn.addEventListener('click', () => {
+    localStorage.setItem('yd_pass', inp.value);
+    load();
+  });
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') btn.click(); });
+}
+
+async function load() {
+  const pass = localStorage.getItem('yd_pass') || '';
+  try {
+    const res = await fetch(API, {
+      headers: { 'x-dashboard-password': pass, 'Accept': 'application/json' },
+    });
+    if (res.status === 401) {
+      document.getElementById('login-err').style.display = 'block';
+      localStorage.removeItem('yd_pass');
+      showLogin();
+      return;
+    }
+    document.getElementById('login-overlay').style.display = 'none';
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    render(data);
+  } catch (e) {
+    const el = document.getElementById('error');
+    el.textContent = 'Error: ' + e.message;
+    el.style.display = 'block';
+  }
+}
+
+function render(data) {
+  document.getElementById('updated').innerHTML =
+    '<span class="dot"></span>Updated ' + new Date(data.updatedAt).toLocaleTimeString();
+
+  const t = data.totals;
+
+  // Activation Funnel
+  if (data.funnel) {
+    const f = data.funnel;
+    const fc = document.querySelectorAll('#funnelCards .stat-card');
+    const rc = (r) => r < 20 ? 'red' : r < 50 ? 'orange' : 'green';
+    fc[0].innerHTML = '<div class="lbl">Signups</div><div class="val">' + f.totalSignups + '</div><div class="sub">all time</div>';
+    fc[1].innerHTML = '<div class="lbl">Activated</div><div class="val ' + rc(f.activationRate) + '">' + f.activated + '</div><div class="sub">' + f.activationRate + '% of signups</div>';
+    fc[2].innerHTML = '<div class="lbl">Retained D2+</div><div class="val ' + rc(f.retainedD2Rate) + '">' + f.retainedD2 + '</div><div class="sub">' + f.retainedD2Rate + '% of activated</div>';
+    fc[3].innerHTML = '<div class="lbl">Retained D7+</div><div class="val ' + rc(f.retainedD7Rate) + '">' + f.retainedD7 + '</div><div class="sub">' + f.retainedD7Rate + '% of activated</div>';
+
+    document.getElementById('cohortTable').innerHTML = (f.cohorts || []).map(c =>
+      '<tr><td>' + c.date + '</td><td>' + c.signups + '</td><td>' + c.activated + '</td>' +
+      '<td style="color:' + (c.activationRate < 30 ? '#ff3b30' : c.activationRate < 60 ? '#ff9500' : '#34c759') + ';font-weight:600">' + c.activationRate + '%</td>' +
+      '<td>' + c.retained + ' (' + c.retentionRate + '%)</td></tr>'
+    ).join('');
+
+    document.getElementById('funnelDetails').innerHTML =
+      '&#x1f4e5; <b>' + f.totalSignups + '</b> total signups<br>' +
+      '&#x1f4d6; <b>' + f.activated + '</b> read &ge;1 passage (' + f.activationRate + '%)<br>' +
+      '&#x1f504; <b>' + f.retainedD2 + '</b> came back day 2+ (' + f.retainedD2Rate + '% of activated)<br>' +
+      '&#x1f525; <b>' + f.retainedD7 + '</b> active 7+ days (' + f.retainedD7Rate + '%)<br>' +
+      '&#x1f480; <b>' + f.neverActivated + '</b> signed up but never read<br>' +
+      '<br><span style="color:#86868b">Last 7 days: ' + f.recentSignups + ' signups &rarr; ' + f.recentActivated + ' activated, ' + f.recentDropoffs + ' dropped</span>';
+  }
+
+  // Overview
+  const cards = document.querySelectorAll('#statCards .stat-card');
+  cards[0].innerHTML = '<div class="lbl">Users</div><div class="val red">' + t.users + '</div><div class="sub">' + t.activeUsers + ' with activity</div>';
+  cards[1].innerHTML = '<div class="lbl">Passages Read</div><div class="val teal">' + t.passagesCompleted + '</div><div class="sub">across all users</div>';
+  cards[2].innerHTML = '<div class="lbl">Reading Time</div><div class="val blue">' + t.readingTime + '</div><div class="sub">total</div>';
+  cards[3].innerHTML = '<div class="lbl">Avg Quiz Score</div><div class="val orange">' + (t.avgQuizPct != null ? t.avgQuizPct + '%' : '&mdash;') + '</div><div class="sub">comprehension quizzes</div>';
+
+  // Reading stats
+  const rc = document.querySelectorAll('#readingStatCards .stat-card');
+  rc[0].innerHTML = '<div class="lbl">Words Looked Up</div><div class="val teal">' + t.wordsLookedUp + '</div><div class="sub">total taps</div>';
+  rc[1].innerHTML = '<div class="lbl">Vocab SRS Cards</div><div class="val green">' + t.srsCards + '</div><div class="sub">' + t.srsDue + ' due, ' + t.srsMastered + ' mastered</div>';
+  rc[2].innerHTML = '<div class="lbl">Grammar Patterns</div><div class="val purple">' + t.grammarEncountered + '</div><div class="sub">' + t.grammarAcquired + ' acquired</div>';
+  rc[3].innerHTML = '<div class="lbl">Passage Library</div><div class="val blue">' + t.passageLibraryTotal + '</div><div class="sub">' + t.passageLibraryWords + ' total words</div>';
+
+  // Chart
+  const labels = data.dailyActivity.map(d => {
+    const dt = new Date(d.date + 'T12:00:00');
+    return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  });
+  if (actChart) actChart.destroy();
+  actChart = new Chart(document.getElementById('actChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Completions',
+        data: data.dailyActivity.map(d => d.completions),
+        backgroundColor: '#009688',
+        borderRadius: 4,
+      }],
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } },
+  });
+
+  // Top passages
+  document.getElementById('passageTable').innerHTML = (data.topPassages || []).map(p =>
+    '<tr><td>' + (p.title_en || p.title) + '</td><td>' + p.jlpt_level + '</td><td>' + p.completions + '</td></tr>'
+  ).join('') || '<tr><td colspan="3" style="color:#86868b">No completions yet</td></tr>';
+
+  // Users
+  document.getElementById('userTable').innerHTML = data.userRows.map(u =>
+    '<tr><td>' + u.displayName + (u.isPro ? ' <span style="color:#ff9500;font-size:10px">PRO</span>' : '') + '</td>' +
+    '<td>' + u.passagesCompleted + '</td>' +
+    '<td>' + u.readingTime + '</td>' +
+    '<td>' + u.wordsLookedUp + '</td>' +
+    '<td>' + (u.avgQuizPct != null ? u.avgQuizPct + '%' : '&mdash;') + '</td>' +
+    '<td>' + u.srs.total + ' (' + u.srs.due + ' due)</td>' +
+    '<td>' + u.grammar.acquired + '/' + u.grammar.total + '</td>' +
+    '<td>' + (u.joined ? u.joined.slice(0, 10) : '&mdash;') + '</td>' +
+    '<td>' + (u.lastSeen ? u.lastSeen.slice(0, 10) : '&mdash;') + '</td></tr>'
+  ).join('') || '<tr><td colspan="9" style="color:#86868b">No users yet</td></tr>';
+}
+
+showLogin();
+</script>
+</body>
+</html>
